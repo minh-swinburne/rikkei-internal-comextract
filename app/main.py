@@ -8,9 +8,9 @@ def main():
     parser = argparse.ArgumentParser(description="Company Info Extractor")
     parser.add_argument('--input', required=True, help='Path to input PDF')
     parser.add_argument('--password', default=None, help='PDF password')
-    parser.add_argument('--start-page', type=int, default=0, help='Start page')
-    parser.add_argument('--end-page', type=int, default=-1, help='End page')
-    parser.add_argument('--method', choices=['api', 'local'], default='api', help='Extraction method')
+    parser.add_argument('--start-page', type=int, default=0, help='Start page (0-indexed)')
+    parser.add_argument('--end-page', type=int, default=-1, help='End page (0-indexed), -1 for last page')
+    parser.add_argument('--method', choices=['api', 'local'], default='api', help='Extraction method, either "api" or "local"')
     parser.add_argument('--output', default='output.xlsx', help='Output Excel file')
     parser.add_argument('--overwrite', action='store_true', help='Overwrite output file')
     args = parser.parse_args()
@@ -22,8 +22,12 @@ def main():
     if args.method == 'api':
         extractor = APIExtractor()
         print(f"Using API extractor with model: {extractor.model}")
+    elif args.method == 'local':
+        raise NotImplementedError("Local extraction method is not implemented yet.")
+        extractor = LocalExtractor()
+        print(f"Using local extractor with model: {extractor.model}")
     else:
-        raise NotImplementedError("Only 'api' method is implemented.")
+        raise NotImplementedError("Only 'api' and 'local' methods are available.")
 
     companies = []
     with Progress() as progress:
