@@ -1,0 +1,2 @@
+# rikkei-internal-comextract
+
