@@ -1,0 +1,30 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Main with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "program": "-m",
+            "console": "integratedTerminal",
+            "args": [
+                "app.main",
+                "--input",
+                "data/input/Japanese Companies in Thailand-Directory-unlocked.pdf",
+                "--start-page",
+                "200",
+                "--end-page",
+                "210",
+                "--method",
+                "api",
+                "--output",
+                "data/output/results.xlsx",
+                "--overwrite"
+            ]
+        }
+    ]
+}
