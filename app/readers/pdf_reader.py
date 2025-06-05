@@ -1,4 +1,4 @@
-import fitz  # PyMuPDF
+import pymupdf  # PyMuPDF
 
 class PDFPasswordError(Exception):
     pass
@@ -17,7 +17,7 @@ def read_pdf_pages(input_path: str, password: str = None, start_page: int = 0, e
     Raises:
         PDFPasswordError: If the PDF is password-protected and no/invalid password is provided.
     """
-    doc = fitz.open(input_path)
+    doc = pymupdf.open(input_path)
     if doc.needs_pass:
         if not password:
             raise PDFPasswordError("PDF is password-protected. Please provide a password.")
