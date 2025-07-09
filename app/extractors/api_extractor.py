@@ -3,61 +3,106 @@ from typing import Optional
 from openai import OpenAI
 from app.settings import settings
 from app.extractors.base import BaseExtractor
-from app.models.company import CompanyInfo
+from app.models.invoice import Invoice
 
 class APIExtractor(BaseExtractor):
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None, model: Optional[str] = None):
         self.api_key = api_key or settings.openrouter_api_key
         self.base_url = base_url or settings.openrouter_base_url
         self.model = model or settings.openrouter_model
-        
+
         self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
 
-    def extract(self, page_text: str) -> list[CompanyInfo]:
+    def extract(self, page_text: str) -> Invoice:
         system_prompt = (
-            "You are a helpful assistant that extracts company data from the text provided by the user.\n"
-            "The text is a page of a PDF file, and it contains information about multiple companies and their contact details.\n"
-            "For each company, return:\n"
-            "\t- Company name\n"
-            "\t- PIC (Person in Charge / Representative) full name with title\n"
-            "\t- PIC job position / title\n"
-            "\t- Email(s), comma-separated\n"
-            "Information about the PIC / representative is usually wrapped in lenticular brackets, with a leading symbol / letter. For example, `【rMr. Kentaro Taki, CEO】` means the PIC is Mr. Kentaro Taki, and the job position is CEO.\n"
-            "Sometimes, the PIC information and email are not available, in that case, return an empty string for the PIC and email fields.\n"
+            "You are a helpful assistant that extracts invoice data from the text provided by the user.\n"
+            "The text is a page of a PDF file, and it contains information about the invoice with multiple items and their details.\n"
+            "The invoice contains the following information:\n"
+            "\t- ID\n"
+            "\t- Date\n"
+            "\t- Seller (The company that created this invoice)\n"
+            "\t- Buyer (The company that received this invoice)\n"
+            "\t- A table of product items\n"
+            "\t- Net Price (The total price of the items before tax)\n"
+            "\t- Total Price (The total price of the items after tax)\n"
+            "For each item in the table, return:\n"
+            "\t- ID\n"
+            "\t- Description\n"
+            "\t- Ordered Quantity\n"
+            "\t- Shipped Quantity (may be different from the ordered quantity if some items are not shipped, for instance, ordered 3 but 2 shipped today, and 1 shipped tomorrow)\n"
+            "\t- Unit Price\n"
+            "\t- Total Price (The total price of this item, i.e. Unit Price * Ordered Quantity)\n"
         )
         response_format = {
             "type": "json_schema",
             "json_schema": {
-                "name": "companies",
+                "name": "invoice",
+                "strict": True,
                 "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "company_name": {
-                                "type": "string",
-                                "description": "The name of the company (e.g. HONDA SAFETY RIDING PARK)"
-                            },
-                            "pic_name": {
-                                "type": "string",
-                                "description": "The full name of the person in charge / representative of the company with title (e.g. Mr. Toshinobu Hirano)"
-                            },
-                            "pic_position": {
-                                "type": "string",
-                                "description": "The job position / title of the person in charge / representative of the company (e.g. Managing Director)"
-                            },
-                            "emails": {
-                                "type": "array",
-                                "description": "The email(s) of the person in charge of the company or the company",
-                                "items": {
-                                    "type": "string",
-                                    "description": "The email of the person in charge of the company or the company (e.g. t.hirano@honda-safety-riding-park.com, marketing@honda-safety-riding-park.com)"
-                                }
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "The ID of the invoice (e.g. 60-67977-11)"
+                        },
+                        "date": {
+                            "type": "string",
+                            "description": "The date of the invoice in YYYY-MM-DD format (e.g. 2025-01-01)"
+                        },
+                        "seller": {
+                            "type": "string",
+                            "description": "The name of the company that created this invoice (e.g. INGRAM MICRO INC.)"
+                        },
+                        "buyer": {
+                            "type": "string",
+                            "description": "The name of the company that received this invoice (e.g. KDDI AMERICA INC)"
+                        },
+                        "items": {
+                            "type": "array",
+                            "description": "The list of items in the invoice",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "string",
+                                        "description": "The ID of the item (e.g. JX7567, 06RZ78)"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "description": "The description of the item, may consist of multiple lines"
+                                    },
+                                    "ordered_quantity": {
+                                        "type": "number",
+                                        "description": "The ordered quantity of the item (e.g. 1, 100, 1000)"
+                                    },
+                                    "shipped_quantity": {
+                                        "type": "number",
+                                        "description": "The shipped quantity of the item (e.g. 1, 100, 1000)"
+                                    },
+                                    "unit_price": {
+                                        "type": "number",
+                                        "description": "The unit price of the item (e.g. 100, 1000)"
+                                    },
+                                    "total_price": {
+                                        "type": "number",
+                                        "description": "The total price of the item (e.g. 100, 1000)"
+                                    }
+                                },
+                                "required": ["id", "description", "ordered_quantity", "unit_price", "total_price"],
+                                "additionalProperties": False
                             }
                         },
-                        "required": ["company_name", "pic_name", "pic_position", "emails"],
-                        "additionalProperties": False
-                    }
+                        "net_price": {
+                            "type": "number",
+                            "description": "The net price of the invoice (e.g. 100, 1000)"
+                        },
+                        "total_price": {
+                            "type": "number",
+                            "description": "The total price of the invoice (e.g. 100, 1000)"
+                        }
+                    },
+                    "required": ["id", "date", "seller", "buyer", "items", "net_price", "total_price"],
+                    "additionalProperties": False
                 }
             }
         }
@@ -80,9 +125,9 @@ class APIExtractor(BaseExtractor):
                 messages=[
                     {"role": "system", "content": (
                         system_prompt + "\n\n" +
-                        "You MUST return a JSON object following this schema (with no code block wrappers, formatting or additional text):\n" +
+                        "You MUST return a JSON object following this schema (with no code block wrappers like ```json, formatting or additional text):\n" +
                         json.dumps(response_format["json_schema"], indent=2) + "\n\n" +
-                        "The JSON object must be a valid JSON object, and it must be a list of objects."
+                        "The JSON object must be a valid JSON object, and it must be a single object."
                     )},
                     {"role": "user", "content": page_text}
                 ],
@@ -91,18 +136,5 @@ class APIExtractor(BaseExtractor):
             # The response will be a JSON object as string
             content = response.choices[0].message.content
             data = json.loads(content)
-            if isinstance(data, dict) and "companies" in data:
-                items = data["companies"]
-            elif isinstance(data, list):
-                items = data
-            else:
-                items = [data]
-            companies = []
-            for item in items:
-                if "emails" in item:
-                    if isinstance(item["emails"], str):
-                        item["emails"] = [e.strip() for e in item["emails"].split(",") if e.strip()]
-                    elif isinstance(item["emails"], list):
-                        item["emails"] = [e.strip() for e in item["emails"] if e.strip()]
-                companies.append(CompanyInfo.model_validate(item))
-            return companies
+            invoice = Invoice.model_validate(data)
+            return invoice
