@@ -41,6 +41,10 @@ class APIExtractor(BaseExtractor):
                 "schema": {
                     "type": "object",
                     "properties": {
+                        "type": {
+                            "type": "string",
+                            "description": "If the PDF shows PURCHASE ORDER, than it is 'purchase order', else, it is 'invoice'"
+                        },
                         "id": {
                             "type": "string",
                             "description": "The ID of the invoice (e.g. 60-67977-11)"
@@ -77,7 +81,7 @@ class APIExtractor(BaseExtractor):
                                     },
                                     "shipped_quantity": {
                                         "type": "number",
-                                        "description": "The shipped quantity of the item (e.g. 1, 100, 1000)"
+                                        "description": "The shipped quantity of the item (e.g. 1, 100, 1000). If type is a Purchase order, this field is empty."
                                     },
                                     "unit_price": {
                                         "type": "number",
@@ -135,6 +139,13 @@ class APIExtractor(BaseExtractor):
         finally:
             # The response will be a JSON object as string
             content = response.choices[0].message.content
+            
+            # Remove Markdown code block wrappers if present
+            if content.strip().startswith("```json"):
+                content = content.strip()[7:-3].strip()  # remove ```json and ending ```
+            elif content.strip().startswith("```"):
+                content = content.strip()[3:-3].strip()  # just in case it uses plain ```
+
             data = json.loads(content)
             invoice = Invoice.model_validate(data)
             return invoice
